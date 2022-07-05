@@ -1,0 +1,348 @@
+<link rel="stylesheet" href="https://unpkg.com/onsenui/css/onsenui.css">
+<link rel="stylesheet" href="https://unpkg.com/onsenui/css/onsen-css-components.min.css">
+<script src="https://unpkg.com/onsenui/js/onsenui.min.js"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat&display=swap" rel="stylesheet">
+
+<script src="https://code.jquery.com/jquery-3.6.0.js" integrity="sha256-H+K7U5CnXl1h5ywQfKtSj8PCmoN9aaq30gDh27Xc0jk=" crossorigin="anonymous"></script>
+
+<link rel="stylesheet" href="onsen_main.css">
+
+<ons-navigator swipeable id="myNavigator" page="cardHome.html" animation="lift"></ons-navigator>
+
+<template id="cardHome.html">
+  <ons-page id="cardHome">
+    <ons-toolbar>
+      <div class="center">Your cards</div>
+    </ons-toolbar>
+
+    <div style="padding:10px;">
+        <h4><span id="member-greeting"></span></h4>
+
+        <div id="card_list">
+            <ons-progress-circular id="cards_loading" indeterminate></ons-progress-circular>
+        </div>
+
+    </div>
+
+    <ons-bottom-toolbar>
+        <!-- <img class="img-fluid" src="images/logo-coastal-credit-union-white-tagline.png" style="width:100%"> -->
+    </ons-bottom-toolbar>
+  </ons-page>
+</template>
+
+<template id="issuePage.html">
+  <ons-page id="issuePage">
+    <ons-toolbar>
+      <div class="center">Report an Issue</div>
+      <div class="left"><ons-back-button>My cards</ons-back-button></div>
+    </ons-toolbar>
+
+    <div style="text-align: center; margin-top: 30px;">
+    <p style="padding: 0px 5px;">You are reporting an issue for the following card:</p>
+
+    <span id="report-card">
+        <ons-progress-circular id="report-loading" indeterminate></ons-progress-circular>
+    </span>
+
+    <p style="padding: 5px 5px;">Please note that reporting an issue with your card will automatically freeze transactions.</p>
+    
+    <ons-list>
+        <ons-list-header>My card was...</ons-list-header>
+
+        <ons-list-item tappable>
+          <label class="left">
+            <ons-radio name="card-status" input-id="radio-lost" value="lost"></ons-radio>
+          </label>
+          <label for="radio-lost" class="center">
+            Lost
+          </label>
+        </ons-list-item>
+        <ons-list-item tappable>
+          <label class="left">
+            <ons-radio name="card-status" input-id="radio-stolen" value="stolen"></ons-radio>
+          </label>
+          <label for="radio-stolen" class="center">
+            Stolen
+          </label>
+        </ons-list-item>
+        <ons-list-item tappable>
+            <label class="left">
+              <ons-radio name="card-status" input-id="radio-damaged" value="damaged"></ons-radio>
+            </label>
+            <label for="radio-damaged" class="center">
+              Damaged
+            </label>
+          </ons-list-item>
+      </ons-list>
+      <br/>
+
+      <p>Please describe your issue below</p>
+
+      <section style="padding: 0 8px 8px">
+        <textarea id="card-issue-message" class="textarea" ng-model="text2" placeholder="Type here" style="width: 100%; height: 100px;"></textarea>
+      </section>
+    </div>
+
+    <ons-bottom-toolbar>
+        <ons-button id="report-button" modifier="large" disabled="true">Submit</ons-button>
+    </ons-bottom-toolbar>
+  </ons-page>
+</template>
+
+<template id="alter-dialog.html">
+    <ons-alert-dialog id="my-alter-dialog" modifier="rowfooter">
+      <div id="alter-dialog-title" class="alert-dialog-title"></div>
+      <div class="alert-dialog-content">
+        <span id="alter-dialog-header"></span>
+        <ons-row>
+            <ons-col>
+                <ion-icon name="card-outline"></ion-icon><span id="name-to-alter"></span>
+            </ons-col>
+            <ons-col>
+                <span id="card-to-alter"></span>
+            </ons-col>
+        </ons-row>
+        <br/><br/>
+        <span id="alter-dialog-footer"></span>
+      </div>
+      <div class="alert-dialog-footer">
+        <ons-alert-dialog-button onclick="hideAlertDialog()">Cancel</ons-alert-dialog-button>
+        <ons-alert-dialog-button id="lock-confirm" class="alert-dialog-button" onclick="hideAlertDialog()">Confirm</ons-alert-dialog-button>
+      </div>
+    </ons-alert-dialog>
+</template>
+
+<script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
+<script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
+
+<script>
+sessionStorage.setItem('userId', '012345'); //put pre-authenticated user in session
+
+let cardSelectBuilder = "  <ons-select id=\"card-sel\" onchange=\"editSelects(event)\">"; //fairly dumb select builder
+
+
+//get our user's cards and put them in session for use later
+$.get("http://localhost:8080/cardcontrols/cardInfo/" + sessionStorage.getItem('userId'), function(data, status){
+    $("#member-greeting").html("Hello, " + data.cardHolder + "! Your available credit cards are listed below.");
+
+    $.each(data.cards, function(index,element){
+        data.cards.status = 'Open';
+    });
+
+    if(!sessionStorage.getItem('userCards')){
+        sessionStorage.setItem('userCards', JSON.stringify(data));
+    }
+    
+    let cardData = JSON.parse(sessionStorage.getItem('userCards'));
+    
+    $("#cards_loading").remove();
+
+    $.each(cardData.cards, function(index, element) {
+        let statusMessage;
+
+        let thisCard = findCard(element);
+
+        if(thisCard.status == 'Locked') {
+            statusMessage = "<span style=\"color:rgb(192, 47, 47)\">FROZEN</span>"
+        }
+        //this is redundant since we set to OPEN at the start of the promise, but good if we had multiple statuses
+        else if(thisCard.status == 'Open' || !thisCard.status){ 
+            statusMessage = "<span style=\"color:#00a950\">OPEN</span>"   
+        }
+
+        $("#card_list").append(`
+            <ons-card>
+                <h4><ion-icon name="card-outline"></ion-icon> ` + element.cardName + ` </p></h4>
+                <ons-row>
+                    <ons-col width="50%">Card Number:<br/> ` + element.maskedCardNumber + `
+                        <br/><br/>
+                    <span id="status-button-`+element.cardId+`"> <ons-button modifier="quiet" onclick="openFreezePage(` + JSON.stringify(element).replace(/'/g, '&apos;').replace(/"/g, '&quot;') + `)">Freeze credit</ons-button></span>
+                    </ons-col>
+                    <ons-col width="50%">Status:<br/><span id="status-message-`+element.cardId+`"> `+ statusMessage + `</span>
+                        <br/><br/>
+                    <span> <ons-button id="issue-button-`+element.cardId+`" modifier="quiet" onclick="openReportPage(` + JSON.stringify(element).replace(/'/g, '&apos;').replace(/"/g, '&quot;') + `)">Report an issue</ons-button></span>    
+                    </ons-col>
+                </ons-row>
+
+            </ons-card>`
+        )
+        if(thisCard.status == 'Locked'){
+            $("#status-button-"+element.cardId).html(`<ons-button modifier="quiet" onclick="openFreezePage(` + JSON.stringify(element).replace(/'/g, '&apos;').replace(/"/g, '&quot;') + `)">Unfreeze credit</ons-button>`);
+            $("#issue-button-" +element.cardId).attr("disabled", true);
+        }
+    });
+});
+
+function openReportPage(cardDataElement) {
+    let myNavigator = document.querySelector('#myNavigator');
+
+    myNavigator
+        .pushPage('issuePage.html', {data: {title: 'Report an Issue'}})
+        .then(function() {
+            $("#cards_loading").remove();
+
+            $("#report-card").html(`
+            <ons-card>
+                <ons-row>
+                    <ons-col><ion-icon name="card-outline"></ion-icon> ` + cardDataElement.cardName + ` </p></ons-col>
+                    <ons-col>(` + cardDataElement.maskedCardNumber + `)</ons-col>                
+                </ons-row>
+
+            </ons-card>`);
+
+            let statusType;
+
+            $('ons-radio[name="card-status"]').change(
+            function(e){
+                if (e.target.checked){
+                    $("#report-button").attr("disabled", false);
+                    statusType = e.target.value;
+                }
+                else {
+                    $("#report-button").attr("disabled", true);
+                }
+            });
+
+            $("#report-button").click(() => sendIssueReport(cardDataElement, statusType, $("#card-issue-message").val()));
+        });
+}
+
+function sendIssueReport(cardDataElement, statusType, reportMessage ){
+    let reportBody = JSON.stringify({
+        "cardId": cardDataElement.cardId,
+        "cardStatus": statusType,
+        "comment": reportMessage              
+    })
+
+    $.post( "http://localhost:8080/cardcontrols/reportcardissue", reportBody, function( data, status ) {
+
+    }, "json");
+
+    toggleCard(cardDataElement, 'off');
+    document.querySelector('#myNavigator').popPage({refresh: true});
+}
+ 
+function openFreezePage(cardDataElement) {
+  var dialog = document.getElementById('my-alter-dialog');
+    if (dialog) {
+        updateNotif(cardDataElement);
+        dialog.show();
+    } else {
+        ons.createElement('alter-dialog.html', { append: true })
+        .then(function(dialog) {
+            updateNotif(cardDataElement);
+            dialog.show();
+        });
+    }
+};
+
+//flip messages on alert notif, 
+function updateNotif(cardDataElement){
+    //always care about these two, DRY
+    $('#card-to-alter').html(cardDataElement.maskedCardNumber);
+    $("#name-to-alter").html(cardDataElement.cardName);
+
+    if(cardDataElement.status == 'Open' || !cardDataElement.status){
+        $('#alter-dialog-title').html("Freeze my card");
+        $('#alter-dialog-header').html("You are about to freeze credit for the card ending in the numbers listed below:<br/><br/>")
+        $('#alter-dialog-footer').html("Are you sure you wish to freeze this card? You will no longer be able to use it to make transactions.")
+        $("#lock-confirm").attr("onclick","toggleCard(" + JSON.stringify(cardDataElement) + ", 'off')");
+    }
+    else if (cardDataElement.status == 'Locked'){
+        $('#alter-dialog-title').html("Unlock my card");
+        $('#alter-dialog-header').html("You are about to unlock credit for the card ending in the numbers listed below:<br/><br/>")
+        $('#alter-dialog-footer').html("Are you sure you wish to unlock this card? You will enable transactions on the card.")
+        $("#lock-confirm").attr("onclick","toggleCard(" + JSON.stringify(cardDataElement) + ", 'on')");
+    }
+}
+
+function toggleCard(cardDataElement, onoff){
+    let postId = cardDataElement.cardId;
+
+    
+    let userData = JSON.parse(sessionStorage.getItem('userCards'));
+    let thisCard;
+
+    if (onoff == 'off'){
+        $.post( "http://localhost:8080/cardcontrols/onoff/" + postId, function( data, status ) {
+
+        //find our card in session to update status. Not great for a lot of cards, but who has more than four or five credit cards?
+        $.each(userData.cards, function(index, element){
+            if (element.cardId == postId){
+                element.status = 'Locked';
+                thisCard = element;
+                $("#status-button-"+thisCard.cardId).html(`<ons-button modifier="quiet" onclick="openFreezePage(` + JSON.stringify(thisCard).replace(/'/g, '&apos;').replace(/"/g, '&quot;') + `)">Unfreeze credit</ons-button>`);
+                $("#status-message-"+thisCard.cardId).html("<span style=\"color:rgb(192, 47, 47)\">FROZEN</span>")
+                $("#issue-button-" +thisCard.cardId).prop("disabled", true);
+            }
+        })
+
+        sessionStorage.setItem('userCards', JSON.stringify(userData)); //update our master json in Session with new 'Locked' status
+
+        if(document.getElementById('my-alter-dialog')){
+            hideAlertDialog();
+            notify(thisCard);
+        }
+    });
+    }
+    else if (onoff == 'on'){
+        $.post( "http://localhost:8080/cardcontrols/onoff/" + postId, function( data, status ) {
+
+        //find our card in session to update status. Not great for a lot of cards, but who has more than four or five credit cards?
+        $.each(userData.cards, function(index, element){
+            if (element.cardId == postId){
+                element.status = 'Open';
+                thisCard = element;
+                $("#status-button-"+thisCard.cardId).html(`<ons-button modifier="quiet" onclick="openFreezePage(` + JSON.stringify(thisCard).replace(/'/g, '&apos;').replace(/"/g, '&quot;') + `)">Freeze credit</ons-button>`);
+                $("#status-message-"+thisCard.cardId).html("<span style=\"color:#00a950\">OPEN</span>");
+                $("#issue-button-" +thisCard.cardId).prop("disabled", false);
+            }
+        })
+
+        sessionStorage.setItem('userCards', JSON.stringify(userData)); //update our master json in Session with new 'Locked' status
+
+        if(document.getElementById('my-alter-dialog')){
+            hideAlertDialog();
+            notify(thisCard);
+        }
+    });
+    }
+    else {
+        console.log("How'd you get here?");
+        hideAlertDialog();
+    }
+}
+
+var hideAlertDialog = function() {
+  document
+    .getElementById('my-alter-dialog')
+    .hide();
+};
+
+function findCard(cardDataElement){
+    let userData = JSON.parse(sessionStorage.getItem('userCards'));
+
+    let returnObj = -1;
+
+    $.each(userData.cards, function(index, element){
+        if (element.cardId == cardDataElement.cardId){
+            returnObj = element;
+        }
+    })
+
+    return returnObj; //not great error handling for now, but we should always find our card id
+}
+
+var notify = function(cardDataElement) {
+    if(cardDataElement.status == 'Locked'){
+        ons.notification.alert('Your card ending in ' + cardDataElement.maskedCardNumber + ' was successfully frozen');
+    }
+    else {
+        ons.notification.alert('Your card ending in ' + cardDataElement.maskedCardNumber + ' was successfully unlocked');
+    }
+};
+
+</script>

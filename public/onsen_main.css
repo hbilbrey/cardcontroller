@@ -1,0 +1,45 @@
+* {
+  font-family: "Montserrat", sans-serif !important;
+}
+
+.toolbar {
+  background-color: #00a950 !important;
+}
+
+.bottom-bar {
+  background-color: #e8e8e8 !important;
+}
+
+.button--large {
+  background-color: #00a950;
+  border-radius: 0px;
+}
+
+.button--large:active {
+  background-color: #00693c;
+}
+
+.card {
+  text-align: center;
+}
+
+.toolbar__title {
+  color: white !important;
+  font-weight: 500 !important;
+  font-size: 18px;
+}
+
+.back-button {
+  color: white !important;
+}
+
+.back-button__icon {
+  fill: white !important;
+}
+
+@media screen and (min-width: 481px) {
+  ons-page {
+    padding-left: 30px;
+    padding-right: 30px;
+  }
+}/*# sourceMappingURL=onsen_main.css.map */

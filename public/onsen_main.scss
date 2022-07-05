@@ -1,0 +1,45 @@
+$coastal-green: #00a950;
+$coastal-dgreen: #00693c;
+$coastal-dgrey: #565757;
+$coastal-lgrey: #e8e8e8;
+
+* {
+    font-family: 'Montserrat', sans-serif !important;
+}
+.toolbar {
+    background-color: $coastal-green !important;
+}
+.bottom-bar {
+    background-color: $coastal-lgrey !important;
+}
+.button--large{
+    background-color: $coastal-green;
+    border-radius: 0px;
+}
+.button--large:active{
+    background-color: $coastal-dgreen;
+}
+
+.card {
+    text-align: center;
+}
+.toolbar__title {
+    color: white !important;
+    font-weight: 500 !important;
+    font-size: 18px;
+}
+
+.back-button {
+    color: white !important;
+}
+
+.back-button__icon {
+    fill: white !important;
+}
+
+@media screen and (min-width: 481px) {
+    ons-page {
+        padding-left: 30px;
+        padding-right: 30px;
+    }
+}
